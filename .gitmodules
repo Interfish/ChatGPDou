@@ -1,0 +1,3 @@
+[submodule "douyin_cracker/douyin_live"]
+	path = douyin_live
+	url = https://github.com/YunzhiYike/douyin-live.git
