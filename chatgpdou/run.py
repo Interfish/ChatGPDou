@@ -6,7 +6,7 @@ from datetime import datetime
 
 from chatgpdou import create_logger
 from chatgpdou import LOG_DIR
-from chatgpdou.douyin_live_cracker import DouyinLiveCracker
+from chatgpdou.douyin_live import DouyinLiveCracker
 
 
 def main():

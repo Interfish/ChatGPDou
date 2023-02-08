@@ -6,10 +6,10 @@ import gzip
 import re
 import json
 import urllib
+import multiprocessing
 
 import requests
 import websocket
-from google.protobuf import json_format
 
 from douyin_live.dy_pb2 import PushFrame
 from douyin_live.dy_pb2 import Response
@@ -24,40 +24,86 @@ from douyin_live.dy_pb2 import CommonTextMessage
 from chatgpdou import create_logger
 
 
-class DouyinLiveCracker(object):
-    class QuestionsPool(object):
-        def __init__(self, logger):
-            self.logger = logger
-            self.q_format = ''
-            #self.q_format = '问题'
-            self.questions = OrderedDict()
-
-        def clear(self):
-            self.questions.clear()
-
-        def add_question(self, user_id, question):
-            if question.startswith(self.q_format):
-                question = question[2:]
-                if question:
-                    self.questions[user_id] = question
-                    self.logger.debug(
-                        "Added user_id: {}, question: {}".format(user_id, question))
-
-        def checkout(self):
-            return random.sample(list(self.questions.values(), k=1))
-
-    def __init__(self, live_url_id, logger=None) -> None:
+class QuestionSelector(object):
+    def __init__(self, comm_queue, logger=None):
         if not logger:
-            self.logger = create_logger("douyin_live_cracker")
+            self.logger = create_logger("question_selector")
         else:
             self.logger = logger
+
+        self.comm_queue = comm_queue
+        self.q_format = ''
+        #self.q_format = '问题'
+        self.message_pool = []
+        self.questions = OrderedDict()
+
+    def collect_and_select_question(self, time_interval=15):
+        self.comm_queue.clear()
+        self.start = time.time()
+        self.message_pool.clear()
+        self.questions.clear()
+        self.stop = self.start + time_interval
+        while True:
+            now = time.time()
+            time_left = self.stop - now
+            if time_left > 0:
+                payload_pkg = self.comm_queue.get(True, time_left)
+                if payload_pkg is not None:
+                    self.message_pool.append(payload_pkg)
+            else:
+                break
+
+        for msg in self.message_pool:
+            for msg in payload_pkg.messagesList:
+                if msg.method == 'WebcastLikeMessage':
+                    pass
+                elif msg.method == 'WebcastMemberMessage':
+                    pass
+                elif msg.method == 'WebcastGiftMessage':
+                    pass
+                elif msg.method == 'WebcastChatMessage':
+                    self.logger.info("New message")
+                    message = ChatMessage()
+                    message.ParseFromString(msg.payload)
+                    text = message.content
+                    user_id = message.user.shortId
+                    event_time = message.eventTime
+                    if event_time >= self.self.start:
+                        self.add_question(user_id, text)
+                if msg.method == 'WebcastSocialMessage':
+                    pass
+
+        if self.questions:
+            return self.checkout_question()
+        return None
+
+    def add_question(self, user_id, question):
+        if question.startswith(self.q_format):
+            question = question[len(self.q_format):]
+            if question:
+                self.questions[user_id] = question
+                self.logger.debug(
+                    "Added user_id: {}, question: {}".format(user_id, question))
+
+    def checkout_question(self):
+        question = random.sample(list(self.questions.values(), k=1))
+        self.logger.info("Checked out question: {}".format(question))
+        return question
+
+
+class DouyinLiveWebSocketServer(object):
+    def __init__(self, live_url_id, comm_queue, logger=None) -> None:
+        if not logger:
+            self.logger = create_logger("douyin_live_web_socket_server")
+        else:
+            self.logger = logger
+        self.comm_queue = comm_queue
 
         self.live_url = "https://live.douyin.com/{}".format(live_url_id)
         self.user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
         self.live_req_header = {
             'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-            # self.user_agent,
-            'User-Agent': "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36",
+            'User-Agent': self.user_agent,
             'cookie': '__ac_nonce=0638733a400869171be51',
         }
 
@@ -78,9 +124,7 @@ class DouyinLiveCracker(object):
                                "browser_version=5.0%20(Macintosh;%20Intel%20Mac%20OS%20X%2010_15_7)%20AppleWebKit/537.36%20(KHTML,%20like%20Gecko)%20Chrome/108.0.0.0%20Safari/537.36"
                                "&browser_online=true&tz_name=Asia/Shanghai&identity=audience&room_id={}&heartbeatDuration=0")
 
-        self.collect_event_timestamp = None
-        self.questions_pool = self.__class__.QuestionsPool(self.logger)
-
+    def run_forever(self):
         self.logger.info("Connecting to {}".format(self.live_url))
 
         res = requests.get(url=self.live_url, headers=self.live_req_header)
@@ -102,8 +146,7 @@ class DouyinLiveCracker(object):
         websocket.enableTrace(False)
         self.ws_header = {
             'cookie': "ttwid={}".format(self.ttwid),
-            # self.user_agent,
-            'user-agent': "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
+            'user-agent': self.user_agent
         }
         self.logger.info("Connecting to wss {}".format(self.web_socket_url))
 
@@ -132,32 +175,13 @@ class DouyinLiveCracker(object):
         wssPackage.ParseFromString(message)
         logId = wssPackage.logId
         decompressed = gzip.decompress(wssPackage.payload)
+
         payloadPackage = Response()
         payloadPackage.ParseFromString(decompressed)
         # 发送ack包
         if payloadPackage.needAck:
             self.sendAck(ws, logId, payloadPackage.internalExt)
-        for msg in payloadPackage.messagesList:
-            if msg.method == 'WebcastLikeMessage':
-                pass
-            elif msg.method == 'WebcastMemberMessage':
-                pass
-            elif msg.method == 'WebcastGiftMessage':
-                pass
-            elif msg.method == 'WebcastChatMessage':
-                self.logger.info("New message")
-                message = ChatMessage()
-                message.ParseFromString(msg.payload)
-
-                text = message.content
-                user_id = message.user.shortId
-                event_time = message.eventTime
-
-                # if self.collect_event_time and event_time >= self.collect_event_time:
-                self.questions_pool.add_question(user_id, text)
-
-            if msg.method == 'WebcastSocialMessage':
-                pass
+        self.comm_queue.put(payloadPackage)
 
     def ping(self, ws):
         while True:
@@ -175,15 +199,3 @@ class DouyinLiveCracker(object):
 
     def on_close(self, ws, a, b):
         self.logger.error("websocket closing ...")
-
-    def start_collect(self):
-        self.questions_pool.clear()
-        self.collect_event_time = time.time()
-
-    def stop_collect(self):
-        self.collect_event_time = None
-
-    def checkout_question(self):
-        question = self.questions_pool.checkout()
-        self.logger.info("Checked out question: {}".format(question))
-        return question
