@@ -4,3 +4,7 @@ __pycache__/
 .DS_Store
 .vscode
 *.log
+*.png
+chatgpdou/run.ps1
+chrome/*
+!chrome/.keep

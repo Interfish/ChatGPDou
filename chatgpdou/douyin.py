@@ -6,7 +6,6 @@ import gzip
 import re
 import json
 import urllib
-import multiprocessing
 
 import requests
 import websocket
@@ -38,8 +37,10 @@ class QuestionSelector(object):
         self.questions = OrderedDict()
 
     def collect_and_select_question(self, time_interval=15):
-        self.comm_queue.clear()
         self.start = time.time()
+        self.logger.info("=================")
+        self.logger.info(
+            "Start collecting questions, timestamp {} ...".format(self.start))
         self.message_pool.clear()
         self.questions.clear()
         self.stop = self.start + time_interval
@@ -47,13 +48,18 @@ class QuestionSelector(object):
             now = time.time()
             time_left = self.stop - now
             if time_left > 0:
-                payload_pkg = self.comm_queue.get(True, time_left)
-                if payload_pkg is not None:
-                    self.message_pool.append(payload_pkg)
+                wss_pkg_payload = self.comm_queue.get_no_throw(True, time_left)
+                if wss_pkg_payload is not None:
+                    self.message_pool.append(wss_pkg_payload)
             else:
                 break
 
-        for msg in self.message_pool:
+        self.logger.info(
+            "Stopped collecting questions, timestamp {}".format(self.stop))
+        for wss_pkg_payload in self.message_pool:
+            decompressed = gzip.decompress(wss_pkg_payload)
+            payload_pkg = Response()
+            payload_pkg.ParseFromString(decompressed)
             for msg in payload_pkg.messagesList:
                 if msg.method == 'WebcastLikeMessage':
                     pass
@@ -62,41 +68,44 @@ class QuestionSelector(object):
                 elif msg.method == 'WebcastGiftMessage':
                     pass
                 elif msg.method == 'WebcastChatMessage':
-                    self.logger.info("New message")
                     message = ChatMessage()
                     message.ParseFromString(msg.payload)
                     text = message.content
                     user_id = message.user.shortId
                     event_time = message.eventTime
-                    if event_time >= self.self.start:
-                        self.add_question(user_id, text)
+                    if event_time >= self.start and event_time <= self.stop:
+                        self.add_question(user_id, text, event_time)
                 if msg.method == 'WebcastSocialMessage':
                     pass
 
         if self.questions:
-            return self.checkout_question()
+            question = self.checkout_question()
+            self.logger.info("Selected question: {}".format(question))
+            return question
+        self.logger.info("No question is selected")
         return None
 
-    def add_question(self, user_id, question):
+    def add_question(self, user_id, question, event_time):
         if question.startswith(self.q_format):
             question = question[len(self.q_format):]
             if question:
                 self.questions[user_id] = question
                 self.logger.debug(
-                    "Added user_id: {}, question: {}".format(user_id, question))
+                    "New q: {}, uid: {}, timestamp: {}".format(question, user_id, event_time))
 
     def checkout_question(self):
-        question = random.sample(list(self.questions.values(), k=1))
+        question = random.sample(list(self.questions.values()), k=1)
         self.logger.info("Checked out question: {}".format(question))
         return question
 
 
 class DouyinLiveWebSocketServer(object):
-    def __init__(self, live_url_id, comm_queue, logger=None) -> None:
-        if not logger:
+    def __init__(self, live_url_id, comm_queue, log_path=None) -> None:
+        if not log_path:
             self.logger = create_logger("douyin_live_web_socket_server")
         else:
-            self.logger = logger
+            self.logger = create_logger(
+                "douyin_live_web_socket_server", log_file_path=log_path)
         self.comm_queue = comm_queue
 
         self.live_url = "https://live.douyin.com/{}".format(live_url_id)
@@ -174,14 +183,15 @@ class DouyinLiveWebSocketServer(object):
         wssPackage = PushFrame()
         wssPackage.ParseFromString(message)
         logId = wssPackage.logId
-        decompressed = gzip.decompress(wssPackage.payload)
 
+        self.comm_queue.put(wssPackage.payload)
+
+        decompressed = gzip.decompress(wssPackage.payload)
         payloadPackage = Response()
         payloadPackage.ParseFromString(decompressed)
         # 发送ack包
         if payloadPackage.needAck:
             self.sendAck(ws, logId, payloadPackage.internalExt)
-        self.comm_queue.put(payloadPackage)
 
     def ping(self, ws):
         while True:
