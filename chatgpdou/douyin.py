@@ -31,8 +31,8 @@ class QuestionSelector(object):
             self.logger = logger
 
         self.comm_queue = comm_queue
-        self.q_format = ''
-        #self.q_format = '问题'
+        #self.q_format = ''
+        self.q_format = '提问'
         self.message_pool = []
         self.questions = OrderedDict()
 

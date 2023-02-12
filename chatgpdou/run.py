@@ -61,8 +61,9 @@ def main():
             comm_queue.clear()
             web_bot.set_count_down(time_interval=15)
             q_text = qs.collect_and_select_question(time_interval=15)
-            web_bot.send_question(q_text)
-            done = web_bot.wait_answer(timeout_sec=60)
+            if q_text:
+                web_bot.send_question(q_text)
+                done = web_bot.wait_answer(timeout_sec=60)
     finally:
         p.terminate()
         p.join()

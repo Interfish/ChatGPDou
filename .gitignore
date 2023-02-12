@@ -8,3 +8,4 @@ __pycache__/
 chatgpdou/run.ps1
 chrome/*
 !chrome/.keep
+*.txt
