@@ -5,6 +5,7 @@ import random
 import gzip
 import re
 import json
+import logging
 import urllib
 
 import requests
@@ -73,6 +74,8 @@ class QuestionSelector(object):
                     text = message.content
                     user_id = message.user.shortId
                     event_time = message.eventTime
+                    self.logger.debug("msg: {}, uid: {}, timestamp: {}".format(
+                        question, user_id, event_time))
                     if event_time >= self.start and event_time <= self.stop:
                         self.add_question(user_id, text, event_time)
                 if msg.method == 'WebcastSocialMessage':
@@ -90,22 +93,23 @@ class QuestionSelector(object):
             question = question[len(self.q_format):]
             if question:
                 self.questions[user_id] = question
-                self.logger.debug(
-                    "New q: {}, uid: {}, timestamp: {}".format(question, user_id, event_time))
 
     def checkout_question(self):
-        question = random.sample(list(self.questions.values()), k=1)
+        questions = list(self.questions.values())
+        self.logger.info("questions:\n" + "\n".join(questions))
+        question = random.sample(questions, k=1)
         self.logger.info("Checked out question: {}".format(question))
         return question
 
 
 class DouyinLiveWebSocketServer(object):
-    def __init__(self, live_url_id, comm_queue, log_path=None) -> None:
+    def __init__(self, live_url_id, comm_queue, log_path=None, log_level=logging.INFO) -> None:
         if not log_path:
-            self.logger = create_logger("douyin_live_web_socket_server")
+            self.logger = create_logger(
+                "douyin_live_web_socket_server", log_level=log_level)
         else:
             self.logger = create_logger(
-                "douyin_live_web_socket_server", log_file_path=log_path)
+                "douyin_live_web_socket_server", log_file_path=log_path, log_level=log_level)
         self.comm_queue = comm_queue
 
         self.live_url = "https://live.douyin.com/{}".format(live_url_id)

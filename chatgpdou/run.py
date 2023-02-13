@@ -14,9 +14,9 @@ from chatgpdou import CommunicationQueue
 from chatgpdou.chatgpt import ChatGPTWebBot
 
 
-def wss_worker(live_url_id, comm_queue, log_path):
+def wss_worker(live_url_id, comm_queue, log_path, log_level):
     wss_server = DouyinLiveWebSocketServer(
-        live_url_id, comm_queue, log_path=log_path)
+        live_url_id, comm_queue, log_path=log_path, log_level=log_level)
     wss_server.run_forever()
 
 
@@ -25,7 +25,13 @@ def main():
     parser.add_argument("live_url_id", nargs='?')
     parser.add_argument("--chrome_profile_directory", type=str, default=None)
     parser.add_argument("--chrome_user_data_dir", type=str, default=None)
+    parser.add_argument("--log_level", type=str,
+                        choices=["info", "debug"], default="info")
     args = parser.parse_args()
+
+    log_level = logging.INFO
+    if args.log_level == "debug":
+        log_level = logging.DEBUG
 
     live_url_id = args.live_url_id
 
@@ -33,7 +39,7 @@ def main():
     create_or_clean_folder(logdir)
     main_logger = create_logger("main",
                                 log_file_path=os.path.join(logdir, 'main.log'),
-                                log_level=logging.DEBUG)
+                                log_level=log_level)
 
     if not live_url_id:
         # A real live broadcast
@@ -50,7 +56,8 @@ def main():
     p = multiprocessing.Process(target=wss_worker,
                                 args=(int(live_url_id),
                                       comm_queue,
-                                      os.path.join(logdir, 'wss_worker.log')))
+                                      os.path.join(logdir, 'wss_worker.log'),
+                                      log_level))
     try:
         p.start()
         main_logger.info("wss_workper pid: {}".format(p.pid))
