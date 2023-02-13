@@ -29,23 +29,24 @@ var hintBoard = document.createElement('div');
 hintBoard.style.position = "absolute";
 hintBoard.style.top = "0";
 hintBoard.style.left = "0";
-hintBoard.style.width = "150px";
-// hintBoard.style.height = "300px";
-hintBoard.style.height = "150px";
-hintBoard.style.backgroundColor = "white";
+hintBoard.style.width = "100%";
+hintBoard.style.backgroundColor = "#444654";
+hintBoard.style.borderBottom = "5px solid gray";
 
 var hint = document.createElement("div");
-hint.style.color = "black"
+hint.style.color = "white"
 hint.style.display = "block";
 hint.style.clear = "both";
 hint.style.margin = "10px";
-// hint.innerHTML = "在倒计时期间，评论区输入'提问'，并在后面跟上你的问题正文内容。倒计时结束，系统会自动抽取一个问题并向 ChatGPT 提问"
+hint.style.textAlign = "center";
+hint.innerHTML = "互动玩法: 倒计时期间，发送评论内容，输入格式为: 提问 问题内容。<br>倒计时结束，系统会自动抽取一个问题并向 ChatGPT 提问。<br>互动评论举例: 提问ChatGPT是什么?"
 hintBoard.appendChild(hint);
 
 var countdown = document.createElement("div");
 countdown.id = "chatgpdou_hint_board_countdown";
 countdown.style.display = "block";
-hint.style.margin = "10px";
+countdown.style.margin = "10px";
+countdown.style.textAlign = "center";
 countdown.style.clear = "both";
 countdown.style.color = "red";
 countdown.innerHTML = "倒计时在本轮提问结束后自动开始";
