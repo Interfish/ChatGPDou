@@ -55,19 +55,16 @@ mainElem.appendChild(hintBoard);
         """
 
         self.count_down_js = """
-  const countdown = document.getElementById("chatgpdou_hint_board_countdown");
-  function startCountdown(sec) {{
-    var count = sec;
-    setInterval(function() {{
-      count--;
-      countdown.innerHTML = "请在" + String(count) + "秒内输入提问";
-      if (count <= 0) {{
-        clearInterval();
-        countdown.innerHTML = "倒计时在本轮提问结束后自动开始";
-      }}
-    }}, 1000);
-  }}
-  startCountdown({0});
+const countdown = document.getElementById("chatgpdou_hint_board_countdown");
+var count = {0};
+var set = setInterval(function() {{
+    count--;
+    countdown.innerHTML = "请在" + String(count) + "秒内输入提问";
+    if (count <= 0) {{
+      clearInterval(set);
+      countdown.innerHTML = "倒计时在本轮提问结束后自动开始";
+    }}
+}}, 1000);
 """
 
         if not logger:
