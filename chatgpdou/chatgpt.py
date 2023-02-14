@@ -34,7 +34,8 @@ hintBoard.style.backgroundColor = "#444654";
 hintBoard.style.borderBottom = "5px solid gray";
 
 var hint = document.createElement("div");
-hint.style.color = "white"
+hint.style.color = "yellow";
+hint.style.fontSize = "18px";
 hint.style.display = "block";
 hint.style.clear = "both";
 hint.style.margin = "10px";
@@ -44,11 +45,12 @@ hintBoard.appendChild(hint);
 
 var countdown = document.createElement("div");
 countdown.id = "chatgpdou_hint_board_countdown";
+countdown.style.color = "yellow";
+countdown.style.fontSize = "20px";
 countdown.style.display = "block";
 countdown.style.margin = "10px";
 countdown.style.textAlign = "center";
 countdown.style.clear = "both";
-countdown.style.color = "red";
 countdown.innerHTML = "倒计时在本轮提问结束后自动开始";
 hintBoard.appendChild(countdown);
 

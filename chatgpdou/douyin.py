@@ -32,8 +32,8 @@ class QuestionSelector(object):
             self.logger = logger
 
         self.comm_queue = comm_queue
-        self.q_format = ''
-        #self.q_format = '提问'
+        #self.q_format = ''
+        self.q_format = '提问'
         self.message_pool = []
         self.questions = OrderedDict()
 
@@ -75,7 +75,7 @@ class QuestionSelector(object):
                     user_id = message.user.shortId
                     event_time = message.eventTime
                     self.logger.debug("msg: {}, uid: {}, timestamp: {}".format(
-                        question, user_id, event_time))
+                        text, user_id, event_time))
                     if event_time >= self.start and event_time <= self.stop:
                         self.add_question(user_id, text, event_time)
                 if msg.method == 'WebcastSocialMessage':
@@ -120,22 +120,24 @@ class DouyinLiveWebSocketServer(object):
             'cookie': '__ac_nonce=0638733a400869171be51',
         }
 
-        self.web_socket_url = ("wss://webcast3-ws-web-hl.douyin.com"
-                               "/webcast/im/push/v2/?"
-                               "app_name=douyin_web&version_code=180800"
-                               "&webcast_sdk_version=1.3.0&update_version_code=1.3.0"
-                               "&compress=gzip&internal_ext=internal_src:dim|wss_push_room_id:{}"
-                               "|wss_push_did:{}"
-                               "|dim_log_id:2022122306295965382308B5DCD45D07F8"
-                               "|fetch_time:1671748199438|seq:1|wss_info:0-1671748199438-0-0"
-                               "|wrds_kvs:WebcastRoomRankMessage-1671748147622091132_WebcastRoomStatsMessage-1671748195537766499"
-                               "&cursor=t-1671748199438_r-1_d-1_u-1_h-1&"
-                               "host=https://live.douyin.com&aid=6383&live_id=1&did_rule=3&debug=false&endpoint=live_pc"
-                               "&support_wrds=1&im_path=/webcast/im/fetch/&device_platform=web"
-                               "&cookie_enabled=true&screen_width=1440&screen_height=900"
-                               "&browser_language=zh&browser_platform=MacIntel&browser_name=Mozilla&"
-                               "browser_version=5.0%20(Macintosh;%20Intel%20Mac%20OS%20X%2010_15_7)%20AppleWebKit/537.36%20(KHTML,%20like%20Gecko)%20Chrome/108.0.0.0%20Safari/537.36"
-                               "&browser_online=true&tz_name=Asia/Shanghai&identity=audience&room_id={}&heartbeatDuration=0")
+        #self.web_socket_url = ("wss://webcast3-ws-web-hl.douyin.com"
+        #                       "/webcast/im/push/v2/?"
+        #                       "app_name=douyin_web&version_code=180800"
+        #                       "&webcast_sdk_version=1.3.0&update_version_code=1.3.0"
+        #                       "&compress=gzip&internal_ext=internal_src:dim|wss_push_room_id:{}"
+        #                       "|wss_push_did:{}"
+        #                       "|dim_log_id:20230214220033B506EE3903790E3059C1"
+        #                       "|fetch_time:1671748199438|seq:1|wss_info:0-1671748199438-0-0"
+        #                       "|wrds_kvs:WebcastRoomRankMessage-1671748147622091132_WebcastRoomStatsMessage-1671748195537766499"
+        #                       "&cursor=t-1671748199438_r-1_d-1_u-1_h-1&"
+        #                       "host=https://live.douyin.com&aid=6383&live_id=1&did_rule=3&debug=false&endpoint=live_pc"
+        #                       "&support_wrds=1&im_path=/webcast/im/fetch/&device_platform=web"
+        #                       "&cookie_enabled=true&screen_width=1440&screen_height=900"
+        #                       "&browser_language=zh&browser_platform=MacIntel&browser_name=Mozilla&"
+        #                       "browser_version=5.0%20(Macintosh;%20Intel%20Mac%20OS%20X%2010_15_7)%20AppleWebKit/537.36%20(KHTML,%20like%20Gecko)%20Chrome/108.0.0.0%20Safari/537.36"
+        #                       "&browser_online=true&tz_name=Asia/Shanghai&identity=audience&room_id={}&heartbeatDuration=0")
+
+        self.web_socket_url = "wss://webcast3-ws-web-hl.douyin.com/webcast/im/push/v2/?app_name=douyin_web&version_code=180800&webcast_sdk_version=1.3.0&update_version_code=1.3.0&compress=gzip&internal_ext=internal_src:dim|wss_push_room_id:{}|wss_push_did:{}|dim_log_id:20230214220033B506EE3903790E3059C1|fetch_time:1676383233624|seq:1|wss_info:0-1676383233624-0-0|wrds_kvs:WebcastRoomRankMessage-1676382424986905036_WebcastRoomStatsMessage-1676383228980195548&cursor=d-1_u-1_h-1_t-1676383233624_r-1&host=https://live.douyin.com&aid=6383&live_id=1&did_rule=3&debug=false&endpoint=live_pc&support_wrds=1&im_path=/webcast/im/fetch/&user_unique_id=7179057636167058979&device_platform=web&cookie_enabled=true&screen_width=1440&screen_height=900&browser_language=en&browser_platform=MacIntel&browser_name=Mozilla&browser_version=5.0%20(Macintosh;%20Intel%20Mac%20OS%20X%2010_15_7)%20AppleWebKit/537.36%20(KHTML,%20like%20Gecko)%20Chrome/110.0.0.0%20Safari/537.36&browser_online=true&tz_name=Asia/Shanghai&identity=audience&room_id={}&heartbeatDuration=0&signature=WgK6lxlg8whoRwCL"
 
     def run_forever(self):
         self.logger.info("Connecting to {}".format(self.live_url))
