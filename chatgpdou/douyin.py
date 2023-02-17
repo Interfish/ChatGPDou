@@ -37,6 +37,9 @@ class QuestionSelector(object):
         self.message_pool = []
         self.questions = OrderedDict()
 
+        self.collect_interval_levels = [20, 60, 90]
+        self.collect_level = 0
+
         self.default_questions = [
             "什么是宇宙中最神秘的事物？",
             "如果你能拥有任何一个超能力，你会选择什么？",
@@ -70,14 +73,18 @@ class QuestionSelector(object):
             "你认为未来的教育方式会是什么样子？",
         ]
 
-    def collect_and_select_question(self, time_interval=15):
+    @property
+    def collect_interval(self):
+        return self.collect_interval_levels[self.collect_level]
+
+    def collect_and_select_question(self):
         self.start = time.time()
         self.logger.info("=================")
         self.logger.info(
             "Start collecting questions, timestamp {} ...".format(self.start))
         self.message_pool.clear()
         self.questions.clear()
-        self.stop = self.start + time_interval
+        self.stop = self.start + self.collect_interval
         while True:
             now = time.time()
             time_left = self.stop - now
@@ -118,15 +125,18 @@ class QuestionSelector(object):
         if self.questions:
             question = self.checkout_question()
             self.logger.info("Selected question: {}".format(question))
+            self.collect_level = 0
         else:
             question = random.sample(self.default_questions, k=1)
             self.logger.info(
                 "No question is selected, pick from default pool: {}".format(question))
+            if self.collect_level < len(self.collect_interval_levels) - 1:
+                self.collect_level += 1
         return question
 
     def add_question(self, user_id, question, event_time):
         if question.startswith(self.q_format):
-            question = question[len(self.q_format):]
+            question = question[len(self.q_format):].strip()
             if question:
                 self.questions[user_id] = question
 

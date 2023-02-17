@@ -108,9 +108,9 @@ def main():
 
             time.sleep(5)
             wss_comm_queue.clear()
-            web_bot.set_count_down(time_interval=20)
+            web_bot.set_count_down(time_interval=qs.collect_interval)
 
-            q_text = qs.collect_and_select_question(time_interval=20)
+            q_text = qs.collect_and_select_question()
             if q_text:
                 web_bot.send_question(q_text)
                 web_bot.wait_answer(timeout_sec=120)
