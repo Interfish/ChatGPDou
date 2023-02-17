@@ -19,10 +19,8 @@ os.environ.update(env)
 
 class ChatGPTWebBot(object):
     def __init__(self,
-                 method_queue,
-                 ret_queue,
                  chrome_user_data_dir=None,
-                 log_path=None, log_level=logging.INFO) -> None:
+                 logger=None) -> None:
         self.chatgpt_url = "https://chat.openai.com/chat"
         self.add_hint_board_js = """
 const mainElem = document.getElementsByTagName('main')[0];
@@ -72,14 +70,11 @@ var set = setInterval(function() {{
 }}, 1000);
 """
 
-        if not log_path:
-            self.logger = create_logger("chatgpt_web_bot", log_level=log_level)
+        if not logger:
+            self.logger = create_logger("chatgpt_web_bot")
         else:
-            self.logger = create_logger(
-                "chatgpt_web_bot", log_file_path=log_path, log_level=log_level)
+            self.logger = logger
 
-        self.method_queue = method_queue
-        self.ret_queue = ret_queue
         self.default_wait = 40
         self.driver = None
         self.driver_options = ChromeOptions()
@@ -88,7 +83,9 @@ var set = setInterval(function() {{
         if chrome_user_data_dir:
             self.driver_options.user_data_dir = os.path.abspath(
                 chrome_user_data_dir)
+            self.driver_options.add_argument("--app={}".format(self.chatgpt_url))
         self.reinitialize_driver()
+        self.bring_to_foreground()
 
     def reinitialize_driver(self):
         if self.driver is not None:
@@ -99,28 +96,19 @@ var set = setInterval(function() {{
         self.driver = Chrome(options=self.driver_options)
 
     def bring_to_foreground(self):
-        # bring the browser to foreground by screenshot
-        self.driver.save_screenshot(os.path.join(LOG_DIR, "tmp.png"))
-
-    def listen_method(self):
-        while True:
-            method = self.method_queue.get_no_throw(True, 0.1)
-            if method is not None:
-                args = method[1]
-                kwargs = method[2]
-                method = method[0]
-                method = getattr(self, method)
-                ret = method(*args, **kwargs)
-                if ret:
-                    self.ret_queue.put(ret)
+        self.driver.minimize_window()
+        self.driver.set_window_rect(x=0, y=0, height=768, width=512)
 
     def go_chat_page(self):
-        self.driver.get(self.chatgpt_url)
+        # comment out since we add_arguments at start up
+        #self.driver.get(self.chatgpt_url)
         self.logger.info("==============================")
 
     def prepare_chat_page(self):
         # Add hint board html onto this page.
         self.driver.execute_script(self.add_hint_board_js)
+        # zoom
+        # self.driver.execute_script("document.body.style.zoom = '0.8'")
         # Find input textarea and click button
         self.text_area = self.driver.find_element(By.XPATH,
                                                   "//main//form//textarea")
@@ -149,8 +137,9 @@ var set = setInterval(function() {{
                     stop_button = self.driver.find_element(By.XPATH,
                                                            "//main//form//button[contains(@class, 'btn')]")
                     stop_button.click()
-                    self.logger.warning("Click stop button error, plz check")
-                except:
+                except Exception as e:
+                    self.logger.warning(
+                        "Click stop button error, plz check, msg: {}".format(str(e)))
                     pass
                 self.driver.implicitly_wait(self.default_wait)
                 return False
