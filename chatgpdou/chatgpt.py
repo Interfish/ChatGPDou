@@ -1,5 +1,6 @@
 import os
 import time
+import logging
 
 #from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -18,9 +19,10 @@ os.environ.update(env)
 
 class ChatGPTWebBot(object):
     def __init__(self,
+                 method_queue,
+                 ret_queue,
                  chrome_user_data_dir=None,
-                 chrome_profile_directory=None,
-                 logger=None) -> None:
+                 log_path=None, log_level=logging.INFO) -> None:
         self.chatgpt_url = "https://chat.openai.com/chat"
         self.add_hint_board_js = """
 const mainElem = document.getElementsByTagName('main')[0];
@@ -40,7 +42,7 @@ hint.style.display = "block";
 hint.style.clear = "both";
 hint.style.margin = "10px";
 hint.style.textAlign = "center";
-hint.innerHTML = "互动玩法: 倒计时期间，发送评论内容，输入格式为: 提问 问题内容。<br>倒计时结束，系统会自动抽取一个问题并向 ChatGPT 提问。<br>互动评论举例: 提问ChatGPT是什么?"
+hint.innerHTML = "直播间程序自动抽取问题，玩法: 倒计时期间，发送评论内容，输入格式为: 提问 问题内容。<br>倒计时结束，系统会自动抽取一个问题并向 ChatGPT 提问。<br>举例，评论区输入: 提问 你认为人工智能能够取代人类吗？"
 hintBoard.appendChild(hint);
 
 var countdown = document.createElement("div");
@@ -70,25 +72,22 @@ var set = setInterval(function() {{
 }}, 1000);
 """
 
-        if not logger:
-            self.logger = create_logger("chatgpt_web_bot")
+        if not log_path:
+            self.logger = create_logger("chatgpt_web_bot", log_level=log_level)
         else:
-            self.logger = logger
+            self.logger = create_logger(
+                "chatgpt_web_bot", log_file_path=log_path, log_level=log_level)
+
+        self.method_queue = method_queue
+        self.ret_queue = ret_queue
         self.default_wait = 40
         self.driver = None
         self.driver_options = ChromeOptions()
         self.logger.info(
             "chrome_user_data_dir: {}".format(chrome_user_data_dir))
-        #self.logger.info("chrome_profile_directory: {}".format(chrome_profile_directory))
         if chrome_user_data_dir:
             self.driver_options.user_data_dir = os.path.abspath(
                 chrome_user_data_dir)
-        # self.driver_options.add_argument(
-        #     "--user-data-dir={}".format(os.path.abspath(chrome_user_data_dir)))
-
-        # if chrome_profile_directory:
-            # self.driver_options.add_argument(
-            #     "--profile-directory={}".format(chrome_profile_directory))
         self.reinitialize_driver()
 
     def reinitialize_driver(self):
@@ -98,13 +97,28 @@ var set = setInterval(function() {{
             random_delay(120, 130)
         random_delay(4, 5)
         self.driver = Chrome(options=self.driver_options)
+
+    def bring_to_foreground(self):
         # bring the browser to foreground by screenshot
         self.driver.save_screenshot(os.path.join(LOG_DIR, "tmp.png"))
 
-    def prepare_chat_page(self):
+    def listen_method(self):
+        while True:
+            method = self.method_queue.get_no_throw(True, 0.1)
+            if method is not None:
+                args = method[1]
+                kwargs = method[2]
+                method = method[0]
+                method = getattr(self, method)
+                ret = method(*args, **kwargs)
+                if ret:
+                    self.ret_queue.put(ret)
+
+    def go_chat_page(self):
         self.driver.get(self.chatgpt_url)
         self.logger.info("==============================")
-        input("Hit any key if chat page is loaded ready: ")
+
+    def prepare_chat_page(self):
         # Add hint board html onto this page.
         self.driver.execute_script(self.add_hint_board_js)
         # Find input textarea and click button
