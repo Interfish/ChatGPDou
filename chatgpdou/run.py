@@ -106,7 +106,7 @@ def main():
             main_logger.info("Using web_bot {} ...".format(idx))
             web_bot.bring_to_foreground()
 
-            time.sleep(5)
+            time.sleep(2)
             wss_comm_queue.clear()
             web_bot.set_count_down(time_interval=qs.collect_interval)
 
@@ -115,6 +115,7 @@ def main():
                 web_bot.send_question(q_text)
                 web_bot.wait_answer(timeout_sec=120)
             iteration += 1
+            time.sleep(5) # wait audience to finish reading the answer
 
     finally:
         for p in sub_procs:

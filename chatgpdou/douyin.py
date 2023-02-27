@@ -22,6 +22,7 @@ from douyin_live.dy_pb2 import UpdateFanTicketMessage
 from douyin_live.dy_pb2 import CommonTextMessage
 
 from chatgpdou import create_logger
+from chatgpdou.questions import default_questions
 
 
 class QuestionSelector(object):
@@ -37,41 +38,8 @@ class QuestionSelector(object):
         self.message_pool = []
         self.questions = OrderedDict()
 
-        self.collect_interval_levels = [20, 60, 90]
+        self.collect_interval_levels = [20]
         self.collect_level = 0
-
-        self.default_questions = [
-            "什么是宇宙中最神秘的事物？",
-            "如果你能拥有任何一个超能力，你会选择什么？",
-            "在这个世界上，什么东西最让你感到惊奇？",
-            "假如你能够和一个历史人物进行面对面的交流，你会选择谁？为什么？",
-            "如果你有一百万美元，你会用它来做什么？",
-            "什么是最好的书籍？为什么？",
-            "你最喜欢的电影是哪一部？为什么？",
-            "你认为人工智能能够取代人类吗？",
-            "如果你能够设计一个机器人，你会让它具备哪些功能？",
-            "你认为世界上最大的难题是什么？",
-            "你认为自然界中最有趣的生物是什么？为什么？",
-            "你认为宇宙中最有趣的行星是什么？为什么？",
-            "你觉得哪个发明最改变了世界？",
-            "如果你能够拥有一个超能力，你会选择什么？",
-            "如果你能够穿越时间，你会选择去哪个年代？",
-            "你认为最有趣的科学理论是什么？",
-            "你最喜欢的食物是什么？为什么？",
-            "你最喜欢的音乐类型是什么？",
-            "你认为哪种技术能够改变世界？",
-            "你认为自然界中最美的景色是什么？为什么？",
-            "你认为未来最有可能会发生什么事情？",
-            "如果你能够前往任何一个地方，你会去哪里？为什么？",
-            "你最喜欢的运动是什么？",
-            "你认为人类最伟大的成就是什么？",
-            "你认为未来的交通方式会是什么样子？",
-            "你认为人类最需要改变的习惯是什么？",
-            "你认为哪个国家最有可能成为全球领导者？",
-            "如果你能够拥有一个神秘的能力，你会选择什么？",
-            "你最喜欢的艺术形式是什么？为什么？",
-            "你认为未来的教育方式会是什么样子？",
-        ]
 
     @property
     def collect_interval(self):
@@ -84,7 +52,7 @@ class QuestionSelector(object):
             "Start collecting questions, timestamp {} ...".format(self.start))
         self.message_pool.clear()
         self.questions.clear()
-        self.stop = self.start + self.collect_interval
+        self.stop = self.start + self.collect_interval + 4 # 4 for broadcast delay
         while True:
             now = time.time()
             time_left = self.stop - now
@@ -127,9 +95,10 @@ class QuestionSelector(object):
             self.logger.info("Selected question: {}".format(question))
             self.collect_level = 0
         else:
-            question = random.sample(self.default_questions, k=1)
-            self.logger.info(
-                "No question is selected, pick from default pool: {}".format(question))
+            self.logger.info("No question provided ...")
+            if random.uniform(0, 1) > 0.8:
+                question = random.sample(default_questions, k=1)
+                self.logger.info("Pick from default pool: {}".format(question))
             if self.collect_level < len(self.collect_interval_levels) - 1:
                 self.collect_level += 1
         return question

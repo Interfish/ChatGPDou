@@ -34,7 +34,7 @@ hintBoard.style.backgroundColor = "#444654";
 hintBoard.style.borderBottom = "5px solid gray";
 
 var hint = document.createElement("div");
-hint.style.color = "yellow";
+hint.style.color = "white";
 hint.style.fontSize = "18px";
 hint.style.display = "block";
 hint.style.clear = "both";
